@@ -4,6 +4,11 @@ const canvas = document.querySelector("canvas");
 const ctx = canvas.getContext("2d");
 
 let width, height;
+let camera = {
+    x: 0,
+    y: 0,
+    step: 10
+};
 let state = {
     keyboard: {
         up: false,
@@ -11,24 +16,34 @@ let state = {
         left: false,
         right: false
     },
-    aliens: [{
-        step: 3,
+    tree: [{
         x: 0,
         y: 0,
-        color: "red",
-        size: 10
+        r: 20
     }]
 };
 
 let draw = {
-    alien(alien) {
-        ctx.fillStyle = alien.color;
-        ctx.fillRect(
-            alien.x - alien.size / 2, 
-            alien.y - alien.size / 2, 
-            alien.size,
-            alien.size
-        );
+    tree(tree) {
+        let {x, y, r} = tree;
+        let 
+            x0 = x + width / 2,
+            y0 = y + height / 2,
+            r0 = r,
+
+            x1 = x0 - 30,
+            y1 = y0 - 30,
+            r1 = r * 2;
+        
+        ctx.fillStyle = "orange";
+        ctx.beginPath();
+        ctx.arc(x0, y0, r0, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.fillStyle = "black";
+        ctx.beginPath();
+        ctx.arc(x1, y1, r1, 0, 2 * Math.PI);
+        ctx.fill();
     }
 };
 
@@ -36,21 +51,20 @@ setInterval(() => {
     width = canvas.width = document.body.offsetWidth,
     height = canvas.height = document.body.offsetHeight;
     
-    let firstAlien = state.aliens[0];
     if ( state.keyboard.up ) {
-        firstAlien.y -= firstAlien.step;
+        camera.y -= camera.step;
     }
     if ( state.keyboard.down ) {
-        firstAlien.y += firstAlien.step;
+        camera.y += camera.step;
     }
     if ( state.keyboard.left ) {
-        firstAlien.x -= firstAlien.step;
+        camera.x -= camera.step;
     }
     if ( state.keyboard.right ) {
-        firstAlien.x += firstAlien.step;
+        camera.x += camera.step;
     }
 
-    state.aliens.forEach(draw.alien);
+    state.tree.forEach(draw.tree);
 }, 30);
 
 // listen keyboard
