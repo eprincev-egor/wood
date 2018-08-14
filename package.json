@@ -1,0 +1,24 @@
+{
+  "name": "wood",
+  "version": "1.0.0",
+  "description": "horror game for js13k",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eprincev-egor/wood.git"
+  },
+  "keywords": [
+    "game",
+    "js13k",
+    "html5"
+  ],
+  "author": "Eprincev Egor",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/eprincev-egor/wood/issues"
+  },
+  "homepage": "https://github.com/eprincev-egor/wood#readme"
+}
