@@ -1,7 +1,14 @@
 "use strict";
 
-const canvas = document.querySelector("canvas");
+const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
+
+canvas.style.position = "fixed";
+canvas.style.width = "100%";
+canvas.style.height = "100%";
+setTimeout(() => {
+    document.body.appendChild(canvas);
+});
 
 let width, height;
 let camera = {
