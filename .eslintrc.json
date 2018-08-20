@@ -20,6 +20,7 @@
     },
     "globals": {
         "console": true,
-        "Promise": true
+        "Promise": true,
+        "Float32Array": true
     }
 }

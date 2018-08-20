@@ -16,11 +16,6 @@ const paths = {
     distHtmlFile: "index.html"
 };
 
-gulp.task("cleanDist", () => {
-    return gulp.src("dist/*", { read: false })
-        .pipe(deleteFiles());
-});
-
 gulp.task("buildHTML", () => {
     return gulp.src(paths.js)
         .pipe(concat(paths.distHtmlFile))
@@ -43,9 +38,8 @@ gulp.task("zip", () => {
 });
 
 gulp.task("build", [
-    "cleanDist",
     "buildHTML",
-    "zip"    
+    "zip"
 ]);
 
 gulp.task("watch", () => {
