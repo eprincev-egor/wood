@@ -1,206 +1,194 @@
 "use strict";
 
 const canvas = document.createElement("canvas");
+const gl = canvas.getContext("webgl");
+
 canvas.style.position = "fixed";
 canvas.style.width = "100%";
 canvas.style.height = "100%";
 
-const gl = canvas.getContext("webgl");
-
-let width, height;
-let camera = {
-    x: 140,
-    y: 0
-};
-
-
-function createShader(type, source) {
-    let shader = gl.createShader(type);
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    return shader;
-}
-
-function createProgram(vertexShader, fragmentShader) {
-    let program = gl.createProgram();
-    
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-
-    gl.linkProgram(program);
-
-    return program;
-}
-
-
-
-let program, 
-    positionLocation, colorLocation, 
-    matrixLocation, 
-    positionBuffer, colorBuffer;
-function main() {
+setTimeout(() => {
     document.body.appendChild(canvas);
+    
+    let camera = {
+            x: 0,
+            y: 0
+        },
 
-    let vertexShader = createShader(gl.VERTEX_SHADER, `
-        attribute vec4 a_position;
-        attribute vec4 a_color;
-        
-        uniform mat4 u_matrix;
-        
-        varying vec4 v_color;
-        
-        void main() {
-            // Multiply the position by the matrix.
-            gl_Position = u_matrix * a_position;
+        vertexShader = f.createShader(gl.VERTEX_SHADER, `
+            attribute vec4 a_position;
+            attribute vec4 a_color;
             
-            // Pass the color to the fragment shader.
-            v_color = a_color;
+            uniform mat4 u_matrix;
+            
+            varying vec4 v_color;
+            
+            void main() {
+                // Multiply the position by the matrix.
+                gl_Position = u_matrix * a_position;
+                
+                // Pass the color to the fragment shader.
+                v_color = a_color;
+            }
+        `),
+
+        fragmentShader = f.createShader(gl.FRAGMENT_SHADER, `
+            precision mediump float;
+
+            // Passed in from the vertex shader.
+            varying vec4 v_color;
+            
+            void main() {
+                gl_FragColor = v_color;
+            }
+        `),
+
+        program = f.createProgram(vertexShader, fragmentShader),
+
+        // look up where the vertex data needs to go.
+        positionLocation = gl.getAttribLocation(program, "a_position"),
+        colorLocation = gl.getAttribLocation(program, "a_color"),
+
+        // lookup uniforms
+        matrixLocation = gl.getUniformLocation(program, "u_matrix"),
+
+        positionBuffer, 
+        colorBuffer,
+
+        // Draw the scene.
+        drawScene = () => {
+            canvas.width = document.body.offsetWidth,
+            canvas.height = document.body.offsetHeight;
+
+            // Tell WebGL how to convert from clip space to pixels
+            gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+            // Clear the canvas AND the depth buffer.
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            // Turn on culling. By default backfacing triangles
+            // will be culled.
+            gl.enable(gl.CULL_FACE);
+
+            // Enable the depth buffer
+            gl.enable(gl.DEPTH_TEST);
+
+
+            // Create a buffer to put positions in
+            positionBuffer = gl.createBuffer();
+            // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            // Put geometry data into buffer
+            setGeometry(gl);
+
+            // Create a buffer to put colors in
+            colorBuffer = gl.createBuffer();
+            // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = colorBuffer)
+            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+            // Put color data into buffer
+            setColors(gl);
+
+            // Tell it to use our program (pair of shaders)
+            gl.useProgram(program);
+
+            // Turn on the position attribute
+            gl.enableVertexAttribArray(positionLocation);
+
+            // Bind the position buffer.
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+            let size, type, normalize, stride, offset;
+
+            // Tell the position attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+            size = 3;          // 3 components per iteration
+            type = gl.FLOAT;   // the data is 32bit floats
+            normalize = false; // don't normalize the data
+            stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+            offset = 0;        // start at the beginning of the buffer
+            gl.vertexAttribPointer(
+                positionLocation, size, type, normalize, stride, offset);
+
+            // Turn on the color attribute
+            gl.enableVertexAttribArray(colorLocation);
+
+            // Bind the color buffer.
+            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+
+            // Tell the attribute how to get data out of colorBuffer (ARRAY_BUFFER)
+            size = 3;                 // 3 components per iteration
+            type = gl.UNSIGNED_BYTE;  // the data is 8bit unsigned values
+            normalize = true;         // normalize the data (convert from 0-255 to 0-1)
+            stride = 0;               // 0 = move forward size * sizeof(type) each iteration to get the next position
+            offset = 0;               // start at the beginning of the buffer
+            gl.vertexAttribPointer(
+                colorLocation, size, type, normalize, stride, offset);
+
+
+            let radius = 200;
+
+            // Compute the projection matrix
+            let aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+            let zNear = 1;
+            let zFar = 2000;
+            let deg60 = 1 / 3 * Math.PI;
+            let projectionMatrix = f.perspective(deg60, aspect, zNear, zFar);
+
+            // Use matrix math to compute a position on a circle where
+            // the camera is
+            let cameraMatrix = f.translation(camera.x, -camera.y, radius * 2);
+
+            // Make a view matrix from the camera matrix
+            let viewMatrix = f.inverse(cameraMatrix);
+
+            // Compute a view projection matrix
+            let matrix = f.multiply(projectionMatrix, viewMatrix);
+
+            // Set the matrix.
+            gl.uniformMatrix4fv(matrixLocation, false, matrix);
+
+            // Draw the geometry.
+            gl.drawArrays(gl.TRIANGLES, 0, 30);
+        };
+
+    document.onkeydown = (e) => {
+        if ( e.keyCode == 37 ) {
+            camera.x -= 10;
         }
-    `);
-    let fragmentShader = createShader(gl.FRAGMENT_SHADER, `
-        precision mediump float;
-
-        // Passed in from the vertex shader.
-        varying vec4 v_color;
-        
-        void main() {
-            gl_FragColor = v_color;
+        if ( e.keyCode == 38 ) {
+            camera.y -= 10;
         }
-    `);
-
-
-    program = createProgram(vertexShader, fragmentShader);
-
-    // look up where the vertex data needs to go.
-    positionLocation = gl.getAttribLocation(program, "a_position");
-    colorLocation = gl.getAttribLocation(program, "a_color");
-  
-    // lookup uniforms
-    matrixLocation = gl.getUniformLocation(program, "u_matrix");
-  
-    // Create a buffer to put positions in
-    positionBuffer = gl.createBuffer();
-    // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    // Put geometry data into buffer
-    setGeometry(gl);
-  
-    // Create a buffer to put colors in
-    colorBuffer = gl.createBuffer();
-    // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = colorBuffer)
-    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-    // Put color data into buffer
-    setColors(gl);
-  
-    // function radToDeg(r) {
-    //     return r * 180 / Math.PI;
-    // }
-  
+        if ( e.keyCode == 39 ) {
+            camera.x += 10;
+        }
+        if ( e.keyCode == 40 ) {
+            camera.y += 10;
+        }
+        drawScene();
+    };
+    
     drawScene();
-}
+});
 
-function degToRad(d) {
-    return d * Math.PI / 180;
-}
+// helpers
+let f = {
+    createShader(type, source) {
+        let shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        return shader;
+    },
 
-// Draw the scene.
-function drawScene() {
-    width = canvas.width = document.body.offsetWidth,
-    height = canvas.height = document.body.offsetHeight;
-  
-    let fieldOfViewRadians = degToRad(60);
-  
-    // Tell WebGL how to convert from clip space to pixels
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-  
-    // Clear the canvas AND the depth buffer.
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  
-    // Turn on culling. By default backfacing triangles
-    // will be culled.
-    gl.enable(gl.CULL_FACE);
-  
-    // Enable the depth buffer
-    gl.enable(gl.DEPTH_TEST);
-  
-    // Tell it to use our program (pair of shaders)
-    gl.useProgram(program);
-  
-    // Turn on the position attribute
-    gl.enableVertexAttribArray(positionLocation);
-  
-    // Bind the position buffer.
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    createProgram(vertexShader, fragmentShader) {
+        let program = gl.createProgram();
+        
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
 
-    let size, type, normalize, stride, offset;
-  
-    // Tell the position attribute how to get data out of positionBuffer (ARRAY_BUFFER)
-    size = 3;          // 3 components per iteration
-    type = gl.FLOAT;   // the data is 32bit floats
-    normalize = false; // don't normalize the data
-    stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
-    offset = 0;        // start at the beginning of the buffer
-    gl.vertexAttribPointer(
-        positionLocation, size, type, normalize, stride, offset);
-  
-    // Turn on the color attribute
-    gl.enableVertexAttribArray(colorLocation);
-  
-    // Bind the color buffer.
-    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-  
-    // Tell the attribute how to get data out of colorBuffer (ARRAY_BUFFER)
-    size = 3;                 // 3 components per iteration
-    type = gl.UNSIGNED_BYTE;  // the data is 8bit unsigned values
-    normalize = true;         // normalize the data (convert from 0-255 to 0-1)
-    stride = 0;               // 0 = move forward size * sizeof(type) each iteration to get the next position
-    offset = 0;               // start at the beginning of the buffer
-    gl.vertexAttribPointer(
-        colorLocation, size, type, normalize, stride, offset);
-  
-  
-    let numFs = 1;
-    let radius = 200;
-  
-    // Compute the projection matrix
-    let aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-    let zNear = 1;
-    let zFar = 2000;
-    let projectionMatrix = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
-  
-    // Use matrix math to compute a position on a circle where
-    // the camera is
-    let cameraMatrix = m4.translation(camera.x, -camera.y, radius * 2);
-  
-    // Make a view matrix from the camera matrix
-    let viewMatrix = m4.inverse(cameraMatrix);
-  
-    // Compute a view projection matrix
-    let viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
-  
-    for (let ii = 0; ii < numFs; ++ii) {
-        let angle = ii * Math.PI * 2 / numFs;
-        let x = Math.cos(angle) * radius;
-        let y = Math.sin(angle) * radius;
-  
-        // starting with the view projection matrix
-        // compute a matrix for the F
-        let matrix = m4.translate(viewProjectionMatrix, x, 0, y);
-  
-        // Set the matrix.
-        gl.uniformMatrix4fv(matrixLocation, false, matrix);
-  
-        // Draw the geometry.
-        let primitiveType = gl.TRIANGLES;
-        let offset = 0;
-        let count = 6 * 6;
-        gl.drawArrays(primitiveType, offset, count);
-    }
-}
+        gl.linkProgram(program);
 
-  
-  
-let m4 = {
+        return program;
+    },
+
     perspective(fieldOfViewInRadians, aspect, near, far) {
         let f = Math.tan(Math.PI * 0.5 - 0.5 * fieldOfViewInRadians);
         let rangeInv = 1.0 / (near - far);
@@ -273,71 +261,6 @@ let m4 = {
             0,  0,  1,  0,
             tx, ty, tz, 1
         ];
-    },
-  
-    xRotation(angleInRadians) {
-        let c = Math.cos(angleInRadians);
-        let s = Math.sin(angleInRadians);
-  
-        return [
-            1, 0, 0, 0,
-            0, c, s, 0,
-            0, -s, c, 0,
-            0, 0, 0, 1
-        ];
-    },
-  
-    yRotation(angleInRadians) {
-        let c = Math.cos(angleInRadians);
-        let s = Math.sin(angleInRadians);
-  
-        return [
-            c, 0, -s, 0,
-            0, 1, 0, 0,
-            s, 0, c, 0,
-            0, 0, 0, 1
-        ];
-    },
-  
-    zRotation(angleInRadians) {
-        let c = Math.cos(angleInRadians);
-        let s = Math.sin(angleInRadians);
-  
-        return [
-            c, s, 0, 0,
-            -s, c, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1
-        ];
-    },
-  
-    scaling(sx, sy, sz) {
-        return [
-            sx, 0,  0,  0,
-            0, sy,  0,  0,
-            0,  0, sz,  0,
-            0,  0,  0,  1
-        ];
-    },
-  
-    translate(m, tx, ty, tz) {
-        return m4.multiply(m, m4.translation(tx, ty, tz));
-    },
-  
-    xRotate(m, angleInRadians) {
-        return m4.multiply(m, m4.xRotation(angleInRadians));
-    },
-  
-    yRotate(m, angleInRadians) {
-        return m4.multiply(m, m4.yRotation(angleInRadians));
-    },
-  
-    zRotate(m, angleInRadians) {
-        return m4.multiply(m, m4.zRotation(angleInRadians));
-    },
-  
-    scale(m, sx, sy, sz) {
-        return m4.multiply(m, m4.scaling(sx, sy, sz));
     },
   
     inverse(m) {
@@ -423,30 +346,12 @@ let m4 = {
             d * ((tmp_22 * m22 + tmp_16 * m02 + tmp_21 * m12) -
               (tmp_20 * m12 + tmp_23 * m22 + tmp_17 * m02))
         ];
-    },
-  
-    vectorMultiply: function(v, m) {
-        let dst = [];
-        for (let i = 0; i < 4; ++i) {
-            dst[i] = 0.0;
-            for (let j = 0; j < 4; ++j)
-                dst[i] += v[j] * m[j * 4 + i];
-        }
-        return dst;
     }
-  
 };
 
 // Fill the buffer with the values that define a letter 'F'.
 function setGeometry(gl) {
     let positions = new Float32Array([
-        -50, -50,  -50,
-        -50,  50,  -50,
-        50, -50,  -50,
-        -50,  50,  -50,
-        50,  50,  -50,
-        50, -50,  -50,
-
         -50, -50,   50,
         50, -50,   50,
         -50,  50,   50,
@@ -483,23 +388,6 @@ function setGeometry(gl) {
         50,   50,  50
     ]);
   
-    // Center the F around the origin and Flip it around. We do this because
-    // we're in 3D now with and +Y is up where as before when we started with 2D
-    // we had +Y as down.
-  
-    // We could do by changing all the values above but I'm lazy.
-    // We could also do it with a matrix at draw time but you should
-    // never do stuff at draw time if you can do it at init time.
-    let matrix = m4.xRotation(Math.PI);
-    matrix = m4.translate(matrix, -50, -75, -15);
-  
-    for (let ii = 0; ii < positions.length; ii += 3) {
-        let vector = m4.vectorMultiply([positions[ii + 0], positions[ii + 1], positions[ii + 2], 1], matrix);
-        positions[ii + 0] = vector[0];
-        positions[ii + 1] = vector[1];
-        positions[ii + 2] = vector[2];
-    }
-  
     gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
 }
   
@@ -508,7 +396,6 @@ function setColors(gl) {
     gl.bufferData(
         gl.ARRAY_BUFFER,
         new Uint8Array([
-            // left column front
             200,  70, 120,
             200,  70, 120,
             200,  70, 120,
@@ -516,23 +403,6 @@ function setColors(gl) {
             200,  70, 120,
             200,  70, 120,
   
-            // top rung front
-            200,  70, 120,
-            200,  70, 120,
-            200,  70, 120,
-            200,  70, 120,
-            200,  70, 120,
-            200,  70, 120,
-  
-            // middle rung front
-            200,  70, 120,
-            200,  70, 120,
-            200,  70, 120,
-            200,  70, 120,
-            200,  70, 120,
-            200,  70, 120,
-  
-            // left column back
             80, 70, 200,
             80, 70, 200,
             80, 70, 200,
@@ -540,39 +410,26 @@ function setColors(gl) {
             80, 70, 200,
             80, 70, 200,
   
-            // top rung back
-            80, 70, 200,
-            80, 70, 200,
-            80, 70, 200,
-            80, 70, 200,
-            80, 70, 200,
-            80, 70, 200,
+            80, 200, 200,
+            80, 200, 200,
+            80, 200, 200,
+            80, 200, 200,
+            80, 200, 200,
+            80, 200, 200,
   
-            // middle rung back
-            80, 70, 200,
-            80, 70, 200,
-            80, 70, 200,
-            80, 70, 200,
-            80, 70, 200,
-            80, 70, 200
+            80, 0, 200,
+            80, 0, 200,
+            80, 0, 200,
+            80, 0, 200,
+            80, 0, 200,
+            80, 0, 200,
+  
+            0, 70, 200,
+            0, 70, 200,
+            0, 70, 200,
+            0, 70, 200,
+            0, 70, 200,
+            0, 70, 200
         ]),
         gl.STATIC_DRAW);
 }
-  
-setTimeout(main);
-
-document.onkeydown = (e) => {
-    if ( e.keyCode == 37 ) {
-        camera.x -= 10;
-    }
-    if ( e.keyCode == 38 ) {
-        camera.y -= 10;
-    }
-    if ( e.keyCode == 39 ) {
-        camera.x += 10;
-    }
-    if ( e.keyCode == 40 ) {
-        camera.y += 10;
-    }
-    drawScene();
-};
