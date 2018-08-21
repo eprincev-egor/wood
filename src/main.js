@@ -73,20 +73,22 @@ setTimeout(() => {
             // Enable the depth buffer
             gl.enable(gl.DEPTH_TEST);
 
+            // create cylinder points
+            let cylinder = getCylinder();
 
             // Create a buffer to put positions in
             positionBuffer = gl.createBuffer();
             // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
             // Put geometry data into buffer
-            setGeometry(gl);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cylinder.points), gl.STATIC_DRAW);
 
             // Create a buffer to put colors in
             colorBuffer = gl.createBuffer();
             // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = colorBuffer)
             gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
             // Put color data into buffer
-            setColors(gl);
+            gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(cylinder.colors), gl.STATIC_DRAW);
 
             // Tell it to use our program (pair of shaders)
             gl.useProgram(program);
@@ -147,7 +149,7 @@ setTimeout(() => {
             gl.uniformMatrix4fv(matrixLocation, false, matrix);
 
             // Draw the geometry.
-            gl.drawArrays(gl.TRIANGLES, 0, 30);
+            gl.drawArrays(gl.TRIANGLES, 0, cylinder.points.length / 3);
         };
 
     document.onkeydown = (e) => {
@@ -349,87 +351,120 @@ let f = {
     }
 };
 
-// Fill the buffer with the values that define a letter 'F'.
-function setGeometry(gl) {
-    let positions = new Float32Array([
-        -50, -50,   50,
-        50, -50,   50,
-        -50,  50,   50,
-        -50,  50,   50,
-        50, -50,   50,
-        50,  50,   50,
+function getCylinder() {
+    let points = [];
+    let colors = [];
+    let count = 12;
+    let angleStep = Math.PI * 2 / count;
+    let radius = 10;
+    let height = 500;
+    let halfHeight = height / 2;
+    // brown
+    let r = 51, g = 19, b = 3;
 
-        -50,   50, -50,
-        -50,   50,  50,
-        50,   50, -50,
-        -50,   50,  50,
-        50,   50,  50,
-        50,   50, -50,
+    let a0 = 0, a1 = angleStep;
+    for (let i = 0; i < count; i++) {
+        let x0 = radius * Math.cos(a0),
+            y0 = radius * Math.sin(a0),
+            x1 = radius * Math.cos(a1),
+            y1 = radius * Math.sin(a1);
+        
+        // face
+        points.push(
+            x0,
+            y0,
+            -halfHeight
+        );
+        points.push(
+            x1,
+            y1,
+            -halfHeight
+        );
+        points.push(
+            0,
+            0,
+            -halfHeight
+        );
 
-        -50,  -50, -50,
-        50,  -50, -50,
-        -50,  -50,  50,
-        -50,  -50,  50,
-        50,  -50, -50,
-        50,  -50,  50,
+        colors.push(
+            r, g, b,
+            r, g, b,
+            r, g, b
+        );
 
-        -50,  -50, -50,
-        -50,  -50,  50,
-        -50,   50, -50,
-        -50,  -50,  50,
-        -50,   50,  50,
-        -50,   50, -50,
+        // bottom
+        points.push(
+            x0,
+            y0,
+            halfHeight
+        );
+        points.push(
+            x1,
+            y1,
+            halfHeight
+        );
+        points.push(
+            0,
+            0,
+            halfHeight
+        );
 
-        50,  -50, -50,
-        50,   50, -50,
-        50,  -50,  50,
-        50,  -50,  50,
-        50,   50, -50,
-        50,   50,  50
-    ]);
-  
-    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-}
-  
-// Fill the buffer with colors for the 'F'.
-function setColors(gl) {
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Uint8Array([
-            200,  70, 120,
-            200,  70, 120,
-            200,  70, 120,
-            200,  70, 120,
-            200,  70, 120,
-            200,  70, 120,
-  
-            80, 70, 200,
-            80, 70, 200,
-            80, 70, 200,
-            80, 70, 200,
-            80, 70, 200,
-            80, 70, 200,
-  
-            80, 200, 200,
-            80, 200, 200,
-            80, 200, 200,
-            80, 200, 200,
-            80, 200, 200,
-            80, 200, 200,
-  
-            80, 0, 200,
-            80, 0, 200,
-            80, 0, 200,
-            80, 0, 200,
-            80, 0, 200,
-            80, 0, 200,
-  
-            0, 70, 200,
-            0, 70, 200,
-            0, 70, 200,
-            0, 70, 200,
-            0, 70, 200,
-            0, 70, 200
-        ]),
-        gl.STATIC_DRAW);
+        colors.push(
+            r, g, b,
+            r, g, b,
+            r, g, b
+        );
+
+        // wall
+        points.push(
+            x0,
+            y0,
+            -halfHeight
+        );
+        points.push(
+            x1,
+            y1,
+            -halfHeight
+        );
+        points.push(
+            x0,
+            y0,
+            halfHeight
+        );
+
+        colors.push(
+            r, g, b,
+            r, g, b,
+            r, g, b
+        );
+
+
+        points.push(
+            x1,
+            y1,
+            halfHeight
+        );
+        points.push(
+            x0,
+            y0,
+            halfHeight
+        );
+        points.push(
+            x1,
+            y1,
+            -halfHeight
+        );
+
+        colors.push(
+            r, g, b,
+            r, g, b,
+            r, g, b
+        );
+        
+
+        a0 = a1;
+        a1 += angleStep;
+    }
+
+    return {points, colors};
 }
