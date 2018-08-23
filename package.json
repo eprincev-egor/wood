@@ -30,5 +30,8 @@
     "gulp-zip": "^4.2.0",
     "gulp-footer": "^2.0.1",
     "gulp-header": "^2.0.5"
+  },
+  "dependencies": {
+    "gulp-sequence": "^1.0.0"
   }
 }

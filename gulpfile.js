@@ -9,6 +9,7 @@ const zip = require("gulp-zip");
 const checkFileSize = require("gulp-check-filesize");
 const header = require("gulp-header");
 const footer = require("gulp-footer");
+const gulpSequence = require("gulp-sequence");
 
 const paths = {
     js: "src/main.js",
@@ -37,19 +38,19 @@ gulp.task("zip", () => {
         .pipe(checkFileSize({ fileSizeLimit: thirteenKb }));
 });
 
-gulp.task("build", [
+gulp.task("build", gulpSequence([
     "buildHTML",
     "zip"
-]);
+]));
 
 gulp.task("watch", () => {
-    gulp.watch(paths.js, [
+    gulp.watch(paths.js, gulpSequence([
         "buildHTML", 
         "zip"
-    ]);
+    ]));
 });
 
-gulp.task("default", [
+gulp.task("default", gulpSequence([
     "build",
     "watch"
-]);
+]));
