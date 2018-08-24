@@ -10,16 +10,36 @@ const checkFileSize = require("gulp-check-filesize");
 const header = require("gulp-header");
 const footer = require("gulp-footer");
 const gulpSequence = require("gulp-sequence");
+const webpackStream = require("webpack-stream");
+// const path = require("path");
 
 const paths = {
-    js: "src/main.js",
-    distDir: "dist",
-    distHtmlFile: "index.html"
+    js: "src/*.js",
+    distDir: "dist"
 };
 
-gulp.task("buildHTML", () => {
+gulp.task("bundle", () => {
     return gulp.src(paths.js)
-        .pipe(concat(paths.distHtmlFile))
+        .pipe(webpackStream({
+            output: {
+                filename: "bundle.js"
+            },
+            module: {
+                rules: [
+                    {
+                        test: /\.js$/,
+                        use: ["source-map-loader"],
+                        enforce: "pre"
+                    }
+                ]
+            }
+        }))
+        .pipe(gulp.dest("bundle"));
+});
+
+gulp.task("buildHTML", () => {
+    return gulp.src("bundle/bundle.js")
+        .pipe(concat("index.html"))
         .pipe(minifyJS())
         .pipe(header("<script>"))
         .pipe(footer("</script>"))
@@ -39,12 +59,14 @@ gulp.task("zip", () => {
 });
 
 gulp.task("build", gulpSequence([
+    "bundle",
     "buildHTML",
     "zip"
 ]));
 
 gulp.task("watch", () => {
     gulp.watch(paths.js, gulpSequence([
+        "bundle",
         "buildHTML", 
         "zip"
     ]));

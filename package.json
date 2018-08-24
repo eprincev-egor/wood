@@ -32,6 +32,9 @@
     "gulp-header": "^2.0.5"
   },
   "dependencies": {
-    "gulp-sequence": "^1.0.0"
+    "gulp-sequence": "^1.0.0",
+    "source-map-loader": "^0.2.4",
+    "webpack": "^4.17.1",
+    "webpack-stream": "^5.1.1"
   }
 }
