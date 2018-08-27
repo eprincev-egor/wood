@@ -58,18 +58,16 @@ gulp.task("zip", () => {
         .pipe(checkFileSize({ fileSizeLimit: thirteenKb }));
 });
 
-gulp.task("build", gulpSequence([
-    "bundle",
-    "buildHTML",
-    "zip"
-]));
+gulp.task("build", () => {
+    gulpSequence([
+        "bundle",
+        "buildHTML",
+        "zip"
+    ]);
+});
 
 gulp.task("watch", () => {
-    gulp.watch(paths.js, gulpSequence([
-        "bundle",
-        "buildHTML", 
-        "zip"
-    ]));
+    gulp.watch(paths.js, ["build"]);
 });
 
 gulp.task("default", gulpSequence([

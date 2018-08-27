@@ -47,7 +47,7 @@ class Drawer {
         this.matrixLocation = gl.getUniformLocation(this.program, "u_matrix");
     }
 
-    draw({camera, trees}) {
+    draw({camera, trees, width, height}) {
         let {
             canvas, gl, 
             positionLocation, program,
@@ -55,11 +55,11 @@ class Drawer {
             matrixLocation
         } = this;
 
-        canvas.width = document.body.offsetWidth,
-        canvas.height = document.body.offsetHeight;
+        canvas.width = width;
+        canvas.height = height;
     
         // Tell WebGL how to convert from clip space to pixels
-        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        gl.viewport(0, 0, width, height);
     
         // Clear the canvas AND the depth buffer.
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
