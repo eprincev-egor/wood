@@ -2,7 +2,7 @@
 
 const gulp = require("gulp");
 
-const deleteFiles = require("gulp-rimraf");
+//const deleteFiles = require("gulp-rimraf");
 const minifyJS = require("gulp-terser");
 const concat = require("gulp-concat");
 const zip = require("gulp-zip");
@@ -49,28 +49,30 @@ gulp.task("buildHTML", () => {
 gulp.task("zip", () => {
     const thirteenKb = 13 * 1024;
 
-    gulp.src("zip/*")
-        .pipe(deleteFiles());
-
     return gulp.src(`${paths.distDir}/**`)
         .pipe(zip("game.zip"))
         .pipe(gulp.dest("zip"))
         .pipe(checkFileSize({ fileSizeLimit: thirteenKb }));
 });
 
-gulp.task("build", () => {
-    gulpSequence([
-        "bundle",
-        "buildHTML",
-        "zip"
-    ]);
-});
+let buildCommands = [
+    "bundle",
+    "buildHTML",
+    "zip"
+];
+gulp.task("build", 
+    gulpSequence(...buildCommands)
+);
 
 gulp.task("watch", () => {
-    gulp.watch(paths.js, ["build"]);
+    gulp.watch(paths.js, () => {
+        gulpSequence(
+            ...buildCommands
+        )();
+    });
 });
 
-gulp.task("default", gulpSequence([
+gulp.task("default", gulpSequence(
     "build",
     "watch"
-]));
+));

@@ -25,7 +25,6 @@
     "gulp": "^3.9.1",
     "gulp-check-filesize": "^2.0.1",
     "gulp-concat": "^2.6.1",
-    "gulp-rimraf": "^0.2.2",
     "gulp-terser": "^1.0.1",
     "gulp-zip": "^4.2.0",
     "gulp-footer": "^2.0.1",

@@ -64,8 +64,8 @@ class App {
 
     generateArea() {
         let sectorSize = 200;
-        for (let x = -this.width / 2; x < this.width; x += sectorSize) {
-            for (let y = -this.height / 2; y < this.height; y += sectorSize) {
+        for (let x = -this.width / 2; x < this.width / 2; x += sectorSize) {
+            for (let y = -this.height / 2; y < this.height / 2; y += sectorSize) {
                 let rx = x + Math.random() * sectorSize;
                 let ry = y + Math.random() * sectorSize;
 
