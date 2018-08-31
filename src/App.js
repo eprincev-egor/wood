@@ -17,8 +17,20 @@ class App {
         this.initDrawer();
         this.initKeyboard();  
         
+        this.hasChange = true;
+        setInterval(() => {
+            this.main();
+        }, 30);
+    }
+
+    main() {
+        if ( !this.hasChange ) {
+            return;
+        }
+        
         this.generateArea();
         this.draw();
+        this.hasChange = false;
     }
 
     initCanvas() {
@@ -52,8 +64,8 @@ class App {
             if ( e.keyCode == 40 ) {
                 camera.y += 10;
             }
-            
-            this.draw();
+
+            this.hasChange = true;
         };
     }
 
@@ -63,16 +75,43 @@ class App {
     }
 
     generateArea() {
-        let sectorSize = 200;
-        for (let x = -this.width / 2; x < this.width / 2; x += sectorSize) {
-            for (let y = -this.height / 2; y < this.height / 2; y += sectorSize) {
-                let rx = x + Math.random() * sectorSize;
-                let ry = y + Math.random() * sectorSize;
+        if ( !this.area ) {
+            this.area = {};
+        }
+        // clear trees before render
+        this.trees = [];
 
-                this.trees.push({
-                    x: rx, 
-                    y: ry
-                });
+        let sectorSize = 150;
+        let {camera} = this;
+
+        for (
+            let x = camera.x - this.width / 2; 
+            x < camera.x + this.width / 2; 
+            x += sectorSize
+        ) {
+            for (
+                let y = camera.y - this.height / 2; 
+                y < camera.y + this.height / 2; 
+                y += sectorSize
+            ) {
+                let sectorX = x - x % sectorSize;
+                let sectorY = y - y % sectorSize;
+                let sectorName = sectorX + ":" + sectorY;
+                let tree = this.area[ sectorName ];
+
+                if ( !tree ) {
+                    let rx = sectorX + Math.random() * sectorSize;
+                    let ry = sectorY + Math.random() * sectorSize;
+                    
+                    tree = {
+                        x: rx, 
+                        y: ry
+                    };
+
+                    this.area[ sectorName ] = tree;
+                }
+
+                this.trees.push( tree );
             }
         }
     }
