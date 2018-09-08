@@ -3,6 +3,7 @@
 function createTree() {
     let points = [];
     let colors = [];
+    let normals = [];
     let count = 12;
     let angleStep = Math.PI * 2 / count;
     let radius = 10;
@@ -24,6 +25,7 @@ function createTree() {
             y0,
             -halfHeight
         );
+
         points.push(
             x1,
             y1,
@@ -115,7 +117,7 @@ function createTree() {
         a1 += angleStep;
     }
 
-    return {points, colors};
+    return {points, colors, normals};
 }
 
 module.exports = createTree;
