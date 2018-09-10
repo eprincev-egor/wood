@@ -189,7 +189,7 @@ class Drawer {
         ]);
 
         // set the light position
-        const lightPosition = [camera.x, camera.y, -240];
+        const lightPosition = [camera.x, camera.y, -230];
         gl.uniform3fv(lightWorldPositionLocation, lightPosition);
 
         // Plane

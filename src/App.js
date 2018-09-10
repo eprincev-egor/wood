@@ -27,20 +27,39 @@ class App {
     main() {
         let {camera, keyCodes} = this;
         let step = 10;
+        let vx = 0;
+        let vy = 1;
 
         if ( keyCodes.up ) {
-            camera.y += step;
+            vy = 1;
         }
         if ( keyCodes.down ) {
-            camera.y -= step;
+            vy = -1;
         }
         if ( keyCodes.left ) {
-            camera.x -= step;
+            vx = -1;
         }
         if ( keyCodes.right ) {
-            camera.x += step;
+            vx = 1;
         }
 
+        if ( vx != 0 || vy != 0 ) {
+            let length = Math.sqrt( vx * vx + vy * vy );
+            let nx = camera.x + step * vx / length;
+            let ny = camera.y + step * vy / length;
+
+            let hasCollision = this.trees.some(tree => {
+                let dx = nx - tree.x;
+                let dy = ny - tree.y;
+
+                return Math.sqrt( dx * dx + dy * dy ) < 25;
+            });
+
+            if ( !hasCollision ) {
+                camera.x = nx;
+                camera.y = ny;
+            }
+        }
         
         this.generateArea();
         this.draw();
