@@ -9,6 +9,7 @@ class App {
             y: 0
         };
         this.trees = [];
+        this.area = {};
 
         this.width = document.body.offsetWidth;
         this.height = document.body.offsetHeight;
@@ -56,13 +57,13 @@ class App {
                 camera.x -= 10;
             }
             if ( e.keyCode == 38 ) {
-                camera.y -= 10;
+                camera.y += 10;
             }
             if ( e.keyCode == 39 ) {
                 camera.x += 10;
             }
             if ( e.keyCode == 40 ) {
-                camera.y += 10;
+                camera.y -= 10;
             }
 
             this.hasChange = true;
@@ -75,29 +76,26 @@ class App {
     }
 
     generateArea() {
-        if ( !this.area ) {
-            this.area = {};
-        }
         // clear trees before render
         this.trees = [];
 
         let sectorSize = 150;
-        let {camera} = this;
+        let {camera, width, height, area} = this;
 
         for (
-            let x = camera.x - this.width / 2; 
-            x < camera.x + this.width / 2; 
+            let x = camera.x - width / 2; 
+            x < camera.x + width / 2; 
             x += sectorSize
         ) {
             for (
-                let y = camera.y - this.height / 2; 
-                y < camera.y + this.height / 2; 
+                let y = camera.y - height / 2; 
+                y < camera.y + height / 2; 
                 y += sectorSize
             ) {
                 let sectorX = x - x % sectorSize;
                 let sectorY = y - y % sectorSize;
                 let sectorName = sectorX + ":" + sectorY;
-                let tree = this.area[ sectorName ];
+                let tree = area[ sectorName ];
 
                 if ( !tree ) {
                     let rx = sectorX + Math.random() * sectorSize;
@@ -108,7 +106,7 @@ class App {
                         y: ry
                     };
 
-                    this.area[ sectorName ] = tree;
+                    area[ sectorName ] = tree;
                 }
 
                 this.trees.push( tree );

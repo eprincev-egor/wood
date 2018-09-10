@@ -103,7 +103,7 @@ class Drawer {
         this.innerLimitLocation = gl.getUniformLocation(program, "u_innerLimit");
         this.outerLimitLocation = gl.getUniformLocation(program, "u_outerLimit");
         this.lightWorldPositionLocation = gl.getUniformLocation(program, "u_lightWorldPosition");
-        this.viewWorldPositionLocation = gl.getUniformLocation(program, "u_viewWorldPosition");
+        //this.viewWorldPositionLocation = gl.getUniformLocation(program, "u_viewWorldPosition");
         this.worldLocation = gl.getUniformLocation(program, "u_world");
 
         
@@ -112,20 +112,8 @@ class Drawer {
         this.treeInfo = treeInfo;
     
         // Create a buffer to put positions in
-        let positionBuffer = gl.createBuffer();
-        // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-        // Put geometry data into buffer
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(treeInfo.points), gl.STATIC_DRAW);
-
-        this.positionBuffer = positionBuffer;
-
-
-        let normalBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(treeInfo.normals), gl.STATIC_DRAW);
-
-        this.normalBuffer = normalBuffer;
+        this.positionBuffer = gl.createBuffer();
+        this.normalBuffer = gl.createBuffer();
     }
 
     draw({
@@ -143,7 +131,7 @@ class Drawer {
             innerLimitLocation,
             outerLimitLocation,
             lightWorldPositionLocation,
-            viewWorldPositionLocation,
+            //viewWorldPositionLocation,
             worldLocation,
             positionBuffer,
             normalBuffer,
@@ -203,18 +191,14 @@ class Drawer {
     
         
         // Compute the projection matrix
-        let aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+        let aspect = width / height;
         let zNear = 1;
         let zFar = 2000;
         let projectionMatrix = f.perspective(60 * Math.PI / 180, aspect, zNear, zFar);
 
-        // target for light
-        let target = [0, 35, 0];
-        let up = [0, 1, 0];
-
         // Compute the camera's matrix
         let radius = 200;
-        let cameraMatrix = f.translation(camera.x, -camera.y, radius * 2);
+        let cameraMatrix = f.translation(camera.x, camera.y, radius * 2);
 
         // Make a view matrix from the camera matrix.
         let viewMatrix = f.inverse(cameraMatrix);
@@ -225,43 +209,85 @@ class Drawer {
         // Set the color to use
         gl.uniform4fv(colorLocation, [
             // dark-gray-blue
-            // 81 / 256, 
-            // 107 / 256, 
-            // 130 / 256, 
+            81 / 256, 
+            107 / 256, 
+            130 / 256, 
             
-            // white
-            1,
-            1,
-            1,
-
             // alpha
             1
         ]);
 
         // set the light position
-        const lightPosition = [40, 60, 120];
+        const lightPosition = [camera.x, camera.y, -230];
         gl.uniform3fv(lightWorldPositionLocation, lightPosition);
 
         // set the camera/view position
-        gl.uniform3fv(viewWorldPositionLocation, [camera.x, camera.y, 0]);
+        //gl.uniform3fv(viewWorldPositionLocation, [0, 0, 0]);
 
         // set the shininess
-        gl.uniform1f(shininessLocation, 150);
+        gl.uniform1f(shininessLocation, 300);
 
         // set the spotlight uniforms
-
-        // since we don't have a plane like most spotlight examples
-        // let's point the spot light at the F
-        let lmat = f.lookAt(lightPosition, target, up);
-        lmat = f.multiply(f.xRotation(0), lmat);
-        lmat = f.multiply(f.yRotation(0), lmat);
-        // get the zAxis from the matrix
-        // negate it because lookAt looks down the -Z axis
-        let lightDirection = [-lmat[8], -lmat[9],-lmat[10]];
+        let lightDirection = lightPosition.slice();
 
         gl.uniform3fv(lightDirectionLocation, lightDirection);
-        gl.uniform1f(innerLimitLocation, Math.cos(0));
-        gl.uniform1f(outerLimitLocation, Math.cos(25 * Math.PI / 180));
+        gl.uniform1f(innerLimitLocation, Math.cos(20));
+        gl.uniform1f(outerLimitLocation, Math.cos(100 * Math.PI / 180));
+
+
+
+        // Plane
+        let treeHeight = 500;
+        let treeHalfHeight = treeHeight / 2;
+
+        // Draw a F at the origin
+        let worldMatrix = f.yRotation(0);
+
+        // Multiply the matrices.
+        let worldViewProjectionMatrix = f.multiply(viewProjectionMatrix, worldMatrix);
+        let worldInverseMatrix = f.inverse(worldMatrix);
+        let worldInverseTransposeMatrix = f.transpose(worldInverseMatrix);
+
+        // Set the matrices
+        gl.uniformMatrix4fv(worldViewProjectionLocation, false, worldViewProjectionMatrix);
+        gl.uniformMatrix4fv(worldInverseTransposeLocation, false, worldInverseTransposeMatrix);
+        gl.uniformMatrix4fv(worldLocation, false, worldMatrix);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            camera.x - width, camera.y - height, -treeHalfHeight,
+            camera.x + width, camera.y - height, -treeHalfHeight,
+            camera.x + width, camera.y + height, -treeHalfHeight,
+            
+            camera.x - width, camera.y - height, -treeHalfHeight,
+            camera.x + width, camera.y + height, -treeHalfHeight,
+            camera.x - width, camera.y + height, -treeHalfHeight
+        ]), gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1
+        ]), gl.STATIC_DRAW);
+
+        // draw plane
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+
+
+
+
+        // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(treeInfo.points), gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(treeInfo.normals), gl.STATIC_DRAW);
 
         // Draw the geometry.
         trees.forEach(tree => {
@@ -282,7 +308,6 @@ class Drawer {
 
             gl.drawArrays(gl.TRIANGLES, 0, treeInfo.points.length / 3);
         });
-
     }
 }
 
