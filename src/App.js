@@ -14,9 +14,9 @@ class App {
         this.width = document.body.offsetWidth;
         this.height = document.body.offsetHeight;
 
+        this.initKeyboard();  
         this.initCanvas();
         this.initDrawer();
-        this.initKeyboard();  
         
         this.hasChange = true;
         setInterval(() => {
@@ -25,13 +25,25 @@ class App {
     }
 
     main() {
-        if ( !this.hasChange ) {
-            return;
+        let {camera, keyCodes} = this;
+        let step = 10;
+
+        if ( keyCodes.up ) {
+            camera.y += step;
         }
+        if ( keyCodes.down ) {
+            camera.y -= step;
+        }
+        if ( keyCodes.left ) {
+            camera.x -= step;
+        }
+        if ( keyCodes.right ) {
+            camera.x += step;
+        }
+
         
         this.generateArea();
         this.draw();
-        this.hasChange = false;
     }
 
     initCanvas() {
@@ -50,23 +62,42 @@ class App {
     }
 
     initKeyboard() {
-        let {camera} = this;
+        let keyCodes = {
+            up: false,
+            down: false,
+            left: false,
+            right: false
+        };
+        this.keyCodes = keyCodes;
+
+        document.onkeyup = (e) => {
+            if ( e.keyCode == 37 ) {
+                keyCodes.left = false;
+            }
+            if ( e.keyCode == 38 ) {
+                keyCodes.up = false;
+            }
+            if ( e.keyCode == 39 ) {
+                keyCodes.right = false;
+            }
+            if ( e.keyCode == 40 ) {
+                keyCodes.down = false;
+            }
+        };
 
         document.onkeydown = (e) => {
             if ( e.keyCode == 37 ) {
-                camera.x -= 10;
+                keyCodes.left = true;
             }
             if ( e.keyCode == 38 ) {
-                camera.y += 10;
+                keyCodes.up = true;
             }
             if ( e.keyCode == 39 ) {
-                camera.x += 10;
+                keyCodes.right = true;
             }
             if ( e.keyCode == 40 ) {
-                camera.y -= 10;
+                keyCodes.down = true;
             }
-
-            this.hasChange = true;
         };
     }
 
@@ -96,6 +127,10 @@ class App {
                 let sectorY = y - y % sectorSize;
                 let sectorName = sectorX + ":" + sectorY;
                 let tree = area[ sectorName ];
+
+                if ( sectorX == 0 && sectorY == 0 ) {
+                    continue;
+                }
 
                 if ( !tree ) {
                     let rx = sectorX + Math.random() * sectorSize;

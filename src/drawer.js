@@ -14,7 +14,6 @@ class Drawer {
             attribute vec3 a_normal;
             
             uniform vec3 u_lightWorldPosition;
-            uniform vec3 u_viewWorldPosition;
             
             uniform mat4 u_world;
             uniform mat4 u_worldViewProjection;
@@ -23,25 +22,20 @@ class Drawer {
             varying vec3 v_normal;
             
             varying vec3 v_surfaceToLight;
-            varying vec3 v_surfaceToView;
             
             void main() {
-            // Multiply the position by the matrix.
-            gl_Position = u_worldViewProjection * a_position;
-            
-            // orient the normals and pass to the fragment shader
-            v_normal = mat3(u_worldInverseTranspose) * a_normal;
-            
-            // compute the world position of the surface
-            vec3 surfaceWorldPosition = (u_world * a_position).xyz;
-            
-            // compute the vector of the surface to the light
-            // and pass it to the fragment shader
-            v_surfaceToLight = u_lightWorldPosition - surfaceWorldPosition;
-            
-            // compute the vector of the surface to the view/camera
-            // and pass it to the fragment shader
-            v_surfaceToView = u_viewWorldPosition - surfaceWorldPosition;
+                // Multiply the position by the matrix.
+                gl_Position = u_worldViewProjection * a_position;
+                
+                // orient the normals and pass to the fragment shader
+                v_normal = mat3(u_worldInverseTranspose) * a_normal;
+                
+                // compute the world position of the surfoace
+                vec3 surfaceWorldPosition = (u_world * a_position).xyz;
+                
+                // compute the vector of the surface to the light
+                // and pass it to the fragment shader
+                v_surfaceToLight = u_lightWorldPosition - surfaceWorldPosition;
             }
         `);
 
@@ -51,38 +45,24 @@ class Drawer {
             // Passed in from the vertex shader.
             varying vec3 v_normal;
             varying vec3 v_surfaceToLight;
-            varying vec3 v_surfaceToView;
             
             uniform vec4 u_color;
-            uniform float u_shininess;
-            uniform vec3 u_lightDirection;
-            uniform float u_innerLimit;          // in dot space
-            uniform float u_outerLimit;          // in dot space
             
             void main() {
-            // because v_normal is a varying it's interpolated
-            // we it will not be a uint vector. Normalizing it
-            // will make it a unit vector again
-            vec3 normal = normalize(v_normal);
-            
-            vec3 surfaceToLightDirection = normalize(v_surfaceToLight);
-            vec3 surfaceToViewDirection = normalize(v_surfaceToView);
-            vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
-            
-            float dotFromDirection = dot(surfaceToLightDirection,
-                                        -u_lightDirection);
-            float inLight = smoothstep(u_outerLimit, u_innerLimit, dotFromDirection);
-            float light = inLight * dot(normal, surfaceToLightDirection);
-            float specular = inLight * pow(dot(normal, halfVector), u_shininess);
-            
-            gl_FragColor = u_color;
-            
-            // Lets multiply just the color portion (not the alpha)
-            // by the light
-            gl_FragColor.rgb *= light;
-            
-            // Just add in the specular
-            gl_FragColor.rgb += specular;
+                // because v_normal is a varying it's interpolated
+                // we it will not be a uint vector. Normalizing it
+                // will make it a unit vector again
+                vec3 normal = normalize(v_normal);
+                
+                vec3 surfaceToLightDirection = normalize(v_surfaceToLight);
+                
+                float light = dot(normal, surfaceToLightDirection);
+                
+                gl_FragColor = u_color;
+                
+                // Lets multiply just the color portion (not the alpha)
+                // by the light
+                gl_FragColor.rgb *= light;
             }
         `);
 
@@ -98,12 +78,8 @@ class Drawer {
         this.colorLocation = gl.getUniformLocation(program, "u_color");
         this.worldViewProjectionLocation = gl.getUniformLocation(program, "u_worldViewProjection");
         this.worldInverseTransposeLocation = gl.getUniformLocation(program, "u_worldInverseTranspose");
-        this.shininessLocation = gl.getUniformLocation(program, "u_shininess");
-        this.lightDirectionLocation = gl.getUniformLocation(program, "u_lightDirection");
-        this.innerLimitLocation = gl.getUniformLocation(program, "u_innerLimit");
-        this.outerLimitLocation = gl.getUniformLocation(program, "u_outerLimit");
+
         this.lightWorldPositionLocation = gl.getUniformLocation(program, "u_lightWorldPosition");
-        //this.viewWorldPositionLocation = gl.getUniformLocation(program, "u_viewWorldPosition");
         this.worldLocation = gl.getUniformLocation(program, "u_world");
 
         
@@ -126,12 +102,7 @@ class Drawer {
             normalLocation,
             worldViewProjectionLocation,
             worldInverseTransposeLocation,
-            shininessLocation,
-            lightDirectionLocation,
-            innerLimitLocation,
-            outerLimitLocation,
             lightWorldPositionLocation,
-            //viewWorldPositionLocation,
             worldLocation,
             positionBuffer,
             normalBuffer,
@@ -209,7 +180,7 @@ class Drawer {
         // Set the color to use
         gl.uniform4fv(colorLocation, [
             // dark-gray-blue
-            81 / 256, 
+            81 / 256,
             107 / 256, 
             130 / 256, 
             
@@ -218,30 +189,15 @@ class Drawer {
         ]);
 
         // set the light position
-        const lightPosition = [camera.x, camera.y, -230];
+        const lightPosition = [camera.x, camera.y, -240];
         gl.uniform3fv(lightWorldPositionLocation, lightPosition);
-
-        // set the camera/view position
-        //gl.uniform3fv(viewWorldPositionLocation, [0, 0, 0]);
-
-        // set the shininess
-        gl.uniform1f(shininessLocation, 300);
-
-        // set the spotlight uniforms
-        let lightDirection = lightPosition.slice();
-
-        gl.uniform3fv(lightDirectionLocation, lightDirection);
-        gl.uniform1f(innerLimitLocation, Math.cos(20));
-        gl.uniform1f(outerLimitLocation, Math.cos(100 * Math.PI / 180));
-
-
 
         // Plane
         let treeHeight = 500;
         let treeHalfHeight = treeHeight / 2;
 
         // Draw a F at the origin
-        let worldMatrix = f.yRotation(0);
+        let worldMatrix = f.translation(camera.x, camera.y, 0);
 
         // Multiply the matrices.
         let worldViewProjectionMatrix = f.multiply(viewProjectionMatrix, worldMatrix);
@@ -255,13 +211,13 @@ class Drawer {
 
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-            camera.x - width, camera.y - height, -treeHalfHeight,
-            camera.x + width, camera.y - height, -treeHalfHeight,
-            camera.x + width, camera.y + height, -treeHalfHeight,
+            - width, - height, -treeHalfHeight,
+            + width, - height, -treeHalfHeight,
+            + width, + height, -treeHalfHeight,
             
-            camera.x - width, camera.y - height, -treeHalfHeight,
-            camera.x + width, camera.y + height, -treeHalfHeight,
-            camera.x - width, camera.y + height, -treeHalfHeight
+            - width, - height, -treeHalfHeight,
+            + width, + height, -treeHalfHeight,
+            - width, + height, -treeHalfHeight
         ]), gl.STATIC_DRAW);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
@@ -293,8 +249,7 @@ class Drawer {
         trees.forEach(tree => {
             
             // Draw a F at the origin
-            let worldMatrix = f.yRotation(0);
-            worldMatrix = f.translate(worldMatrix, tree.x, tree.y, 0);
+            let worldMatrix = f.translation(tree.x, tree.y, 0);
 
             // Multiply the matrices.
             let worldViewProjectionMatrix = f.multiply(viewProjectionMatrix, worldMatrix);
