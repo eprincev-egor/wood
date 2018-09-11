@@ -311,6 +311,132 @@ let f = {
             d * ((tmp_22 * m22 + tmp_16 * m02 + tmp_21 * m12) -
               (tmp_20 * m12 + tmp_23 * m22 + tmp_17 * m02))
         ];
+    },
+
+    cylinder({
+        length = 500,
+        radius = 10
+    }) {
+        let count = 12;
+        let points = [];
+        let normals = [];
+        let angleStep = Math.PI * 2 / count;
+        let halfLength = length / 2;
+
+        let a0 = 0, a1 = angleStep;
+        for (let i = 0; i < count; i++) {
+            let 
+                // normal
+                nx0 = Math.cos(a0),
+                ny0 = Math.sin(a0), 
+                // point
+                x0 = radius * nx0,
+                y0 = radius * ny0,
+                // normal
+                nx1 = Math.cos(a1),
+                ny1 = Math.sin(a1),
+                // point
+                x1 = radius * nx1,
+                y1 = radius * ny1;
+    
+            // face
+            points.push(
+                x0,
+                y0,
+                halfLength,
+
+                x1,
+                y1,
+                halfLength,
+            
+                0,
+                0,
+                halfLength
+            );
+
+            normals.push(
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0
+            );
+
+            // wall
+            points.push(
+                x0,
+                y0,
+                -halfLength,
+            
+                x1,
+                y1,
+                -halfLength,
+
+                x0,
+                y0,
+                halfLength,
+
+
+
+                x1,
+                y1,
+                halfLength,
+
+                x0,
+                y0,
+                halfLength,
+
+                x1,
+                y1,
+                -halfLength
+            );
+
+            normals.push(
+                nx0, ny0, 0,
+                nx1, ny1, 0,
+                nx0, ny0, 0,
+
+                nx1, ny1, 0,
+                nx0, ny0, 0,
+                nx1, ny1, 0
+            );
+
+            a0 = a1;
+            a1 += angleStep;
+        }
+
+        return {points, normals};
+    },
+
+    cableSegment({
+        fromX,
+        fromY,
+        toX,
+        toY
+    }) {
+        let points = [];
+        let normals = [];
+        let z = -240;
+        let radius = 5;
+
+        points.push(
+            fromX - radius, fromY, z,
+            fromX + radius, fromY, z,
+            toX - radius, toY, z,
+
+            toX - radius, toY, z,
+            toX + radius, toY, z,
+            fromX + radius, fromY, z
+        );
+        normals.push(
+            0, 1, 1,
+            0, 1, 1,
+            0, 1, 1,
+
+            0, 1, 1,
+            0, 1, 1,
+            0, 1, 1
+        );
+
+        return {points, normals};
     }
 };
 

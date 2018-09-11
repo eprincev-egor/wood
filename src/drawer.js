@@ -1,7 +1,6 @@
 "use strict";
 
 const f = require("./helpers");
-const createTree = require("./tree");
 
 class Drawer {
     constructor(canvas) {
@@ -84,7 +83,7 @@ class Drawer {
 
         
         // create cylinder points
-        let treeInfo = createTree();
+        let treeInfo = f.cylinder({});
         this.treeInfo = treeInfo;
     
         // Create a buffer to put positions in
@@ -93,7 +92,8 @@ class Drawer {
     }
 
     draw({
-        camera, trees, width, height
+        camera, trees, width, height,
+        cable
     }) {
         let {
             canvas, gl, 
@@ -192,11 +192,13 @@ class Drawer {
         const lightPosition = [camera.x, camera.y, -230];
         gl.uniform3fv(lightWorldPositionLocation, lightPosition);
 
+
+
         // Plane
         let treeHeight = 500;
         let treeHalfHeight = treeHeight / 2;
 
-        // Draw a F at the origin
+        // Draw a plane at the origin
         let worldMatrix = f.translation(camera.x, camera.y, 0);
 
         // Multiply the matrices.
@@ -235,8 +237,45 @@ class Drawer {
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
 
+        // draw cable
+        worldMatrix = f.translation(0, 0, 0);
 
+        // Multiply the matrices.
+        worldViewProjectionMatrix = f.multiply(viewProjectionMatrix, worldMatrix);
+        worldInverseMatrix = f.inverse(worldMatrix);
+        worldInverseTransposeMatrix = f.transpose(worldInverseMatrix);
 
+        // Set the matrices
+        gl.uniformMatrix4fv(worldViewProjectionLocation, false, worldViewProjectionMatrix);
+        gl.uniformMatrix4fv(worldInverseTransposeLocation, false, worldInverseTransposeMatrix);
+        gl.uniformMatrix4fv(worldLocation, false, worldMatrix);
+
+        let cablePoints = [];
+        let cableNormals = [];
+        for (let i = 1, n = cable.length; i < n; i++) {
+            let next = cable[i],
+                prev = cable[i - 1],
+
+                segment = f.cableSegment({
+                    fromX: prev.x,
+                    fromY: prev.y,
+                    toX: next.x,
+                    toY: next.y
+                });
+            
+            cablePoints = cablePoints.concat( segment.points );
+            cableNormals = cablePoints.concat( segment.normals );
+        }
+        // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cablePoints), gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cableNormals), gl.STATIC_DRAW);
+        
+        gl.drawArrays(gl.TRIANGLES, 0, cablePoints.length / 3);
+
+        
 
         // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
