@@ -416,25 +416,64 @@ let f = {
         let normals = [];
         let z = -240;
         let radius = 5;
+        let count = 12;
+        let angleStep = Math.PI * 2 / count;
 
-        points.push(
-            fromX - radius, fromY, z,
-            fromX + radius, fromY, z,
-            toX - radius, toY, z,
 
-            toX - radius, toY, z,
-            toX + radius, toY, z,
-            fromX + radius, fromY, z
-        );
-        normals.push(
-            0, 1, 1,
-            0, 1, 1,
-            0, 1, 1,
+        let dx = toX - fromX;
+        let dy = toY - fromY;
+        let length = Math.sqrt( dx * dx + dy * dy );
+        let circlesCount = Math.ceil( length / radius );
+        let vx = dx / circlesCount;
+        let vy = dy / circlesCount;
+        let cx = fromX;
+        let cy = fromY;
 
-            0, 1, 1,
-            0, 1, 1,
-            0, 1, 1
-        );
+        for (let j = 0; j < circlesCount; j++) {
+            
+            let a0 = 0, a1 = angleStep;
+            for (let i = 0; i < count; i++) {
+                let 
+                    // normal
+                    nx0 = Math.cos(a0),
+                    ny0 = Math.sin(a0), 
+                    // point
+                    x0 = radius * nx0,
+                    y0 = radius * ny0,
+                    // normal
+                    nx1 = Math.cos(a1),
+                    ny1 = Math.sin(a1),
+                    // point
+                    x1 = radius * nx1,
+                    y1 = radius * ny1;
+
+                points.push(
+                    cx + x0,
+                    cy + y0,
+                    z,
+
+                    cx + x1,
+                    cy + y1,
+                    z,
+                
+                    cx,
+                    cy,
+                    z
+                );
+
+                normals.push(
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0
+                );
+
+                a0 = a1;
+                a1 += angleStep;
+            }
+
+            cx += vx;
+            cy += vy;
+        }
 
         return {points, normals};
     }

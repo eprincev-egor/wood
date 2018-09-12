@@ -144,7 +144,6 @@ class App {
                     y: ny
                 });
             }
-            
 
             this.score += length;
         }
