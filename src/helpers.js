@@ -1,5 +1,7 @@
 "use strict";
 
+// https://webglfundamentals.org/webgl/resources/m4.js
+
 // helpers
 let f = {
     createShader(gl, type, source) {
@@ -30,6 +32,134 @@ let f = {
             0, 0, (near + far) * rangeInv, -1,
             0, 0, near * far * rangeInv * 2, 0
         ];
+    },
+
+    subtractVectors(a, b, dst) {
+        dst = dst || new Float32Array(3);
+        dst[0] = a[0] - b[0];
+        dst[1] = a[1] - b[1];
+        dst[2] = a[2] - b[2];
+        return dst;
+    },
+
+    xRotation(angleInRadians, dst) {
+        dst = dst || new Float32Array(16);
+        let c = Math.cos(angleInRadians);
+        let s = Math.sin(angleInRadians);
+  
+        dst[ 0] = 1;
+        dst[ 1] = 0;
+        dst[ 2] = 0;
+        dst[ 3] = 0;
+        dst[ 4] = 0;
+        dst[ 5] = c;
+        dst[ 6] = s;
+        dst[ 7] = 0;
+        dst[ 8] = 0;
+        dst[ 9] = -s;
+        dst[10] = c;
+        dst[11] = 0;
+        dst[12] = 0;
+        dst[13] = 0;
+        dst[14] = 0;
+        dst[15] = 1;
+  
+        return dst;
+    },
+
+    yRotation(angleInRadians, dst) {
+        dst = dst || new Float32Array(16);
+        let c = Math.cos(angleInRadians);
+        let s = Math.sin(angleInRadians);
+  
+        dst[ 0] = c;
+        dst[ 1] = 0;
+        dst[ 2] = -s;
+        dst[ 3] = 0;
+        dst[ 4] = 0;
+        dst[ 5] = 1;
+        dst[ 6] = 0;
+        dst[ 7] = 0;
+        dst[ 8] = s;
+        dst[ 9] = 0;
+        dst[10] = c;
+        dst[11] = 0;
+        dst[12] = 0;
+        dst[13] = 0;
+        dst[14] = 0;
+        dst[15] = 1;
+  
+        return dst;
+    },
+
+    transpose(m, dst) {
+        dst = dst || new Float32Array(16);
+  
+        dst[ 0] = m[0];
+        dst[ 1] = m[4];
+        dst[ 2] = m[8];
+        dst[ 3] = m[12];
+        dst[ 4] = m[1];
+        dst[ 5] = m[5];
+        dst[ 6] = m[9];
+        dst[ 7] = m[13];
+        dst[ 8] = m[2];
+        dst[ 9] = m[6];
+        dst[10] = m[10];
+        dst[11] = m[14];
+        dst[12] = m[3];
+        dst[13] = m[7];
+        dst[14] = m[11];
+        dst[15] = m[15];
+  
+        return dst;
+    },
+
+    lookAt(cameraPosition, target, up, dst) {
+        dst = dst || new Float32Array(16);
+        let zAxis = f.normalize(
+            f.subtractVectors(cameraPosition, target));
+        let xAxis = f.normalize(f.cross(up, zAxis));
+        let yAxis = f.normalize(f.cross(zAxis, xAxis));
+  
+        dst[ 0] = xAxis[0];
+        dst[ 1] = xAxis[1];
+        dst[ 2] = xAxis[2];
+        dst[ 3] = 0;
+        dst[ 4] = yAxis[0];
+        dst[ 5] = yAxis[1];
+        dst[ 6] = yAxis[2];
+        dst[ 7] = 0;
+        dst[ 8] = zAxis[0];
+        dst[ 9] = zAxis[1];
+        dst[10] = zAxis[2];
+        dst[11] = 0;
+        dst[12] = cameraPosition[0];
+        dst[13] = cameraPosition[1];
+        dst[14] = cameraPosition[2];
+        dst[15] = 1;
+  
+        return dst;
+    },
+
+    cross(a, b, dst) {
+        dst = dst || new Float32Array(3);
+        dst[0] = a[1] * b[2] - a[2] * b[1];
+        dst[1] = a[2] * b[0] - a[0] * b[2];
+        dst[2] = a[0] * b[1] - a[1] * b[0];
+        return dst;
+    },
+
+    normalize(v, dst) {
+        dst = dst || new Float32Array(3);
+        let length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+        // make sure we don't divide by 0.
+        if (length > 0.00001) {
+            dst[0] = v[0] / length;
+            dst[1] = v[1] / length;
+            dst[2] = v[2] / length;
+        }
+        return dst;
     },
 
     multiply(a, b) {
@@ -181,6 +311,171 @@ let f = {
             d * ((tmp_22 * m22 + tmp_16 * m02 + tmp_21 * m12) -
               (tmp_20 * m12 + tmp_23 * m22 + tmp_17 * m02))
         ];
+    },
+
+    cylinder({
+        length = 500,
+        radius = 10
+    }) {
+        let count = 12;
+        let points = [];
+        let normals = [];
+        let angleStep = Math.PI * 2 / count;
+        let halfLength = length / 2;
+
+        let a0 = 0, a1 = angleStep;
+        for (let i = 0; i < count; i++) {
+            let 
+                // normal
+                nx0 = Math.cos(a0),
+                ny0 = Math.sin(a0), 
+                // point
+                x0 = radius * nx0,
+                y0 = radius * ny0,
+                // normal
+                nx1 = Math.cos(a1),
+                ny1 = Math.sin(a1),
+                // point
+                x1 = radius * nx1,
+                y1 = radius * ny1;
+    
+            // face
+            points.push(
+                x0,
+                y0,
+                halfLength,
+
+                x1,
+                y1,
+                halfLength,
+            
+                0,
+                0,
+                halfLength
+            );
+
+            normals.push(
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0
+            );
+
+            // wall
+            points.push(
+                x0,
+                y0,
+                -halfLength,
+            
+                x1,
+                y1,
+                -halfLength,
+
+                x0,
+                y0,
+                halfLength,
+
+
+
+                x1,
+                y1,
+                halfLength,
+
+                x0,
+                y0,
+                halfLength,
+
+                x1,
+                y1,
+                -halfLength
+            );
+
+            normals.push(
+                nx0, ny0, 0,
+                nx1, ny1, 0,
+                nx0, ny0, 0,
+
+                nx1, ny1, 0,
+                nx0, ny0, 0,
+                nx1, ny1, 0
+            );
+
+            a0 = a1;
+            a1 += angleStep;
+        }
+
+        return {points, normals};
+    },
+
+    cableSegment({
+        fromX,
+        fromY,
+        toX,
+        toY
+    }) {
+        let points = [];
+        let normals = [];
+        let z = -240;
+        let radius = 5;
+        let count = 12;
+        let angleStep = Math.PI * 2 / count;
+
+
+        let dx = toX - fromX;
+        let dy = toY - fromY;
+        let length = Math.sqrt( dx * dx + dy * dy );
+        let circlesCount = Math.ceil( length / radius );
+        let vx = dx / circlesCount;
+        let vy = dy / circlesCount;
+        let cx = fromX;
+        let cy = fromY;
+
+        for (let j = 0; j < circlesCount; j++) {
+            
+            let a0 = 0, a1 = angleStep;
+            for (let i = 0; i < count; i++) {
+                let 
+                    // normal
+                    nx0 = Math.cos(a0),
+                    ny0 = Math.sin(a0), 
+                    // point
+                    x0 = radius * nx0,
+                    y0 = radius * ny0,
+                    // normal
+                    nx1 = Math.cos(a1),
+                    ny1 = Math.sin(a1),
+                    // point
+                    x1 = radius * nx1,
+                    y1 = radius * ny1;
+
+                points.push(
+                    cx + x0,
+                    cy + y0,
+                    z,
+
+                    cx + x1,
+                    cy + y1,
+                    z,
+                
+                    cx,
+                    cy,
+                    z
+                );
+
+                normals.push(
+                    1, 1, 0,
+                    1, 1, 0,
+                    1, 1, 0
+                );
+
+                a0 = a1;
+                a1 += angleStep;
+            }
+
+            cx += vx;
+            cy += vy;
+        }
+
+        return {points, normals};
     }
 };
 

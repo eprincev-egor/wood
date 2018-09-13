@@ -1,7 +1,6 @@
 "use strict";
 
 const f = require("./helpers");
-const createTree = require("./tree");
 
 class Drawer {
     constructor(canvas) {
@@ -11,18 +10,31 @@ class Drawer {
 
         this.vertexShader = f.createShader(gl, gl.VERTEX_SHADER, `
             attribute vec4 a_position;
-            attribute vec4 a_color;
+            attribute vec3 a_normal;
             
-            uniform mat4 u_matrix;
+            uniform vec3 u_lightWorldPosition;
             
-            varying vec4 v_color;
+            uniform mat4 u_world;
+            uniform mat4 u_worldViewProjection;
+            uniform mat4 u_worldInverseTranspose;
+            
+            varying vec3 v_normal;
+            
+            varying vec3 v_surfaceToLight;
             
             void main() {
                 // Multiply the position by the matrix.
-                gl_Position = u_matrix * a_position;
+                gl_Position = u_worldViewProjection * a_position;
                 
-                // Pass the color to the fragment shader.
-                v_color = a_color;
+                // orient the normals and pass to the fragment shader
+                v_normal = mat3(u_worldInverseTranspose) * a_normal;
+                
+                // compute the world position of the surfoace
+                vec3 surfaceWorldPosition = (u_world * a_position).xyz;
+                
+                // compute the vector of the surface to the light
+                // and pass it to the fragment shader
+                v_surfaceToLight = u_lightWorldPosition - surfaceWorldPosition;
             }
         `);
 
@@ -30,29 +42,69 @@ class Drawer {
             precision mediump float;
 
             // Passed in from the vertex shader.
-            varying vec4 v_color;
+            varying vec3 v_normal;
+            varying vec3 v_surfaceToLight;
+            
+            uniform vec4 u_color;
             
             void main() {
-                gl_FragColor = v_color;
+                // because v_normal is a varying it's interpolated
+                // we it will not be a uint vector. Normalizing it
+                // will make it a unit vector again
+                vec3 normal = normalize(v_normal);
+                
+                vec3 surfaceToLightDirection = normalize(v_surfaceToLight);
+                
+                float light = dot(normal, surfaceToLightDirection);
+                
+                gl_FragColor = u_color;
+                
+                // Lets multiply just the color portion (not the alpha)
+                // by the light
+                gl_FragColor.rgb *= light;
             }
         `);
 
-        this.program = f.createProgram(gl, this.vertexShader, this.fragmentShader),
+        let program = f.createProgram(gl, this.vertexShader, this.fragmentShader);
+        this.program = program;
 
         // look up where the vertex data needs to go.
-        this.positionLocation = gl.getAttribLocation(this.program, "a_position"),
-        this.colorLocation = gl.getAttribLocation(this.program, "a_color"),
-
+        this.positionLocation = gl.getAttribLocation(program, "a_position");
+        this.normalLocation = gl.getAttribLocation(program, "a_normal");
+        
+        
         // lookup uniforms
-        this.matrixLocation = gl.getUniformLocation(this.program, "u_matrix");
+        this.worldViewProjectionLocation = gl.getUniformLocation(program, "u_worldViewProjection");
+        this.worldInverseTransposeLocation = gl.getUniformLocation(program, "u_worldInverseTranspose");
+
+        this.lightWorldPositionLocation = gl.getUniformLocation(program, "u_lightWorldPosition");
+        this.worldLocation = gl.getUniformLocation(program, "u_world");
+
+        
+        // create cylinder points
+        let treeInfo = f.cylinder({});
+        this.treeInfo = treeInfo;
+    
+        // Create a buffer to put positions in
+        this.positionBuffer = gl.createBuffer();
+        this.normalBuffer = gl.createBuffer();
     }
 
-    draw({camera, trees, width, height}) {
+    draw({
+        camera, trees, width, height,
+        cable
+    }) {
         let {
             canvas, gl, 
             positionLocation, program,
-            colorLocation,
-            matrixLocation
+            normalLocation,
+            worldViewProjectionLocation,
+            worldInverseTransposeLocation,
+            lightWorldPositionLocation,
+            worldLocation,
+            positionBuffer,
+            normalBuffer,
+            treeInfo
         } = this;
 
         canvas.width = width;
@@ -70,23 +122,6 @@ class Drawer {
     
         // Enable the depth buffer
         gl.enable(gl.DEPTH_TEST);
-    
-        // create cylinder points
-        let treeInfo = createTree();
-    
-        // Create a buffer to put positions in
-        let positionBuffer = gl.createBuffer();
-        // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-        // Put geometry data into buffer
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(treeInfo.points), gl.STATIC_DRAW);
-    
-        // Create a buffer to put colors in
-        let colorBuffer = gl.createBuffer();
-        // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = colorBuffer)
-        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-        // Put color data into buffer
-        gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(treeInfo.colors), gl.STATIC_DRAW);
     
         // Tell it to use our program (pair of shaders)
         gl.useProgram(program);
@@ -107,49 +142,152 @@ class Drawer {
         offset = 0;        // start at the beginning of the buffer
         gl.vertexAttribPointer(
             positionLocation, size, type, normalize, stride, offset);
+        
+        // Turn on the normal attribute
+        gl.enableVertexAttribArray(normalLocation);
+
+        // Bind the normal buffer.
+        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
     
-        // Turn on the color attribute
-        gl.enableVertexAttribArray(colorLocation);
-    
-        // Bind the color buffer.
-        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-    
-        // Tell the attribute how to get data out of colorBuffer (ARRAY_BUFFER)
-        size = 3;                 // 3 components per iteration
-        type = gl.UNSIGNED_BYTE;  // the data is 8bit unsigned values
-        normalize = true;         // normalize the data (convert from 0-255 to 0-1)
-        stride = 0;               // 0 = move forward size * sizeof(type) each iteration to get the next position
-        offset = 0;               // start at the beginning of the buffer
+        // Tell the attribute how to get data out of normalBuffer (ARRAY_BUFFER)
+        size = 3;          // 3 components per iteration
+        type = gl.FLOAT;   // the data is 32bit floating point values
+        normalize = false; // normalize the data (convert from 0-255 to 0-1)
+        stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+        offset = 0;        // start at the beginning of the buffer
         gl.vertexAttribPointer(
-            colorLocation, size, type, normalize, stride, offset);
+            normalLocation, size, type, normalize, stride, offset);
     
-    
-        let radius = 200;
-    
+        
         // Compute the projection matrix
-        let aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+        let aspect = width / height;
         let zNear = 1;
         let zFar = 2000;
-        let deg60 = 1 / 3 * Math.PI;
-        let projectionMatrix = f.perspective(deg60, aspect, zNear, zFar);
-    
-        // Use matrix math to compute a position on a circle where
-        // the camera is
-        let cameraMatrix = f.translation(camera.x, -camera.y, radius * 2);
-    
-        // Make a view matrix from the camera matrix
+        let projectionMatrix = f.perspective(60 * Math.PI / 180, aspect, zNear, zFar);
+
+        // Compute the camera's matrix
+        let radius = 200;
+        let cameraMatrix = f.translation(camera.x, camera.y, radius * 2);
+
+        // Make a view matrix from the camera matrix.
         let viewMatrix = f.inverse(cameraMatrix);
-    
+
         // Compute a view projection matrix
         let viewProjectionMatrix = f.multiply(projectionMatrix, viewMatrix);
-    
+
+        // set the light position
+        const lightPosition = [camera.x, camera.y, -230];
+        gl.uniform3fv(lightWorldPositionLocation, lightPosition);
+
+
+
+        // Plane
+        let treeHeight = 500;
+        let treeHalfHeight = treeHeight / 2;
+
+        // Draw a plane at the origin
+        let worldMatrix = f.translation(camera.x, camera.y, 0);
+
+        // Multiply the matrices.
+        let worldViewProjectionMatrix = f.multiply(viewProjectionMatrix, worldMatrix);
+        let worldInverseMatrix = f.inverse(worldMatrix);
+        let worldInverseTransposeMatrix = f.transpose(worldInverseMatrix);
+
+        // Set the matrices
+        gl.uniformMatrix4fv(worldViewProjectionLocation, false, worldViewProjectionMatrix);
+        gl.uniformMatrix4fv(worldInverseTransposeLocation, false, worldInverseTransposeMatrix);
+        gl.uniformMatrix4fv(worldLocation, false, worldMatrix);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            - width, - height, -treeHalfHeight,
+            + width, - height, -treeHalfHeight,
+            + width, + height, -treeHalfHeight,
+            
+            - width, - height, -treeHalfHeight,
+            + width, + height, -treeHalfHeight,
+            - width, + height, -treeHalfHeight
+        ]), gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1
+        ]), gl.STATIC_DRAW);
+
+        // draw plane
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+
+        // draw cable
+        worldMatrix = f.translation(0, 0, 0);
+
+        // Multiply the matrices.
+        worldViewProjectionMatrix = f.multiply(viewProjectionMatrix, worldMatrix);
+        worldInverseMatrix = f.inverse(worldMatrix);
+        worldInverseTransposeMatrix = f.transpose(worldInverseMatrix);
+
+        // Set the matrices
+        gl.uniformMatrix4fv(worldViewProjectionLocation, false, worldViewProjectionMatrix);
+        gl.uniformMatrix4fv(worldInverseTransposeLocation, false, worldInverseTransposeMatrix);
+        gl.uniformMatrix4fv(worldLocation, false, worldMatrix);
+
+        let cablePoints = [];
+        let cableNormals = [];
+        let sliceCable = cable.slice(-50);
+        for (let i = 1, n = sliceCable.length; i < n; i++) {
+            let next = sliceCable[i],
+                prev = sliceCable[i - 1],
+
+                segment = f.cableSegment({
+                    fromX: prev.x,
+                    fromY: prev.y,
+                    toX: next.x,
+                    toY: next.y
+                });
+            
+            cablePoints = cablePoints.concat( segment.points );
+            cableNormals = cablePoints.concat( segment.normals );
+        }
+        // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cablePoints), gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cableNormals), gl.STATIC_DRAW);
+        
+        gl.drawArrays(gl.TRIANGLES, 0, cablePoints.length / 3);
+
+        
+
+        // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(treeInfo.points), gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(treeInfo.normals), gl.STATIC_DRAW);
+
+        // Draw the geometry.
         trees.forEach(tree => {
-            let matrix = f.translate(viewProjectionMatrix, tree.x, tree.y, 0);
-    
-            // Set the matrix.
-            gl.uniformMatrix4fv(matrixLocation, false, matrix);
-    
-            // Draw the geometry.
+            
+            // Draw a F at the origin
+            let worldMatrix = f.translation(tree.x, tree.y, 0);
+
+            // Multiply the matrices.
+            let worldViewProjectionMatrix = f.multiply(viewProjectionMatrix, worldMatrix);
+            let worldInverseMatrix = f.inverse(worldMatrix);
+            let worldInverseTransposeMatrix = f.transpose(worldInverseMatrix);
+
+            // Set the matrices
+            gl.uniformMatrix4fv(worldViewProjectionLocation, false, worldViewProjectionMatrix);
+            gl.uniformMatrix4fv(worldInverseTransposeLocation, false, worldInverseTransposeMatrix);
+            gl.uniformMatrix4fv(worldLocation, false, worldMatrix);
+
             gl.drawArrays(gl.TRIANGLES, 0, treeInfo.points.length / 3);
         });
     }
