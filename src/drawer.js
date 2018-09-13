@@ -74,6 +74,7 @@ class Drawer {
         
         
         // lookup uniforms
+        this.colorLocation = gl.getUniformLocation(program, "u_color");
         this.worldViewProjectionLocation = gl.getUniformLocation(program, "u_worldViewProjection");
         this.worldInverseTransposeLocation = gl.getUniformLocation(program, "u_worldInverseTranspose");
 
@@ -97,6 +98,7 @@ class Drawer {
         let {
             canvas, gl, 
             positionLocation, program,
+            colorLocation,
             normalLocation,
             worldViewProjectionLocation,
             worldInverseTransposeLocation,
@@ -175,6 +177,17 @@ class Drawer {
         // Compute a view projection matrix
         let viewProjectionMatrix = f.multiply(projectionMatrix, viewMatrix);
 
+        // Set the color to use
+        gl.uniform4fv(colorLocation, [
+            // dark-gray-blue
+            81 / 256,
+            107 / 256, 
+            130 / 256, 
+            
+            // alpha
+            1
+        ]);
+
         // set the light position
         const lightPosition = [camera.x, camera.y, -230];
         gl.uniform3fv(lightWorldPositionLocation, lightPosition);
@@ -239,10 +252,9 @@ class Drawer {
 
         let cablePoints = [];
         let cableNormals = [];
-        let sliceCable = cable.slice(-50);
-        for (let i = 1, n = sliceCable.length; i < n; i++) {
-            let next = sliceCable[i],
-                prev = sliceCable[i - 1],
+        for (let i = 1, n = cable.length; i < n; i++) {
+            let next = cable[i],
+                prev = cable[i - 1],
 
                 segment = f.cableSegment({
                     fromX: prev.x,
