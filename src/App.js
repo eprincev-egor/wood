@@ -9,7 +9,7 @@ class App {
         this.cable = [];
 
         let styleEl = document.createElement("style");
-        styleEl.innerHTML = "* {margin: 0; padding: 0; overflow: hidden;}";
+        styleEl.innerHTML = "* {margin: 0; padding: 0; overflow: hidden;} html, body {width: 100%; height: 100%;}";
         document.body.appendChild(styleEl);
 
         this.width = document.body.offsetWidth;

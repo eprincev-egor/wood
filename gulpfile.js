@@ -32,8 +32,8 @@ gulp.task("buildHTML", () => {
     return gulp.src("bundle/bundle.js")
         .pipe(concat("index.html"))
         .pipe(minifyJS())
-        .pipe(header("<script>"))
-        .pipe(footer("</script>"))
+        .pipe(header("<html><head><meta charset=\"UTF-8\"></head><body><script>"))
+        .pipe(footer("</script></body></html>"))
         .pipe(gulp.dest(paths.distDir));
 });
 
